@@ -199,6 +199,24 @@
       font-size: 0.85em;
     }
 
+    .history-list .entry-start {
+      color: #555;
+      font-size: 0.9em;
+      flex: 1;
+      text-align: center;
+    }
+
+    .history-list .entry-rotation {
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #4a90e2;
+    }
+
+    .history-list .entry-base {
+      color: #999;
+      font-size: 0.9em;
+    }
+
     .empty-message {
       color: #aaa;
       text-align: center;
@@ -236,7 +254,7 @@
 </head>
 <body>
   <h1><span aria-hidden="true">🎰 </span>回転数計測</h1>
-  <p class="subtitle">パチンコの平均回転数（ボーダー）を計算します</p>
+  <p class="subtitle">スタート数を入力して1000円あたりの平均回転数を計算します</p>
 
   <div class="card">
     <div class="average-display">
@@ -246,8 +264,8 @@
       <div class="count-label" id="countLabel">データなし</div>
     </div>
     <div class="input-area">
-      <label for="rotationInput" class="sr-only">回転数</label>
-      <input type="number" id="rotationInput" placeholder="回転数を入力" min="0" inputmode="numeric">
+      <label for="startInput" class="sr-only">スタート数</label>
+      <input type="number" id="startInput" placeholder="スタート数を入力" min="0" inputmode="numeric">
       <button class="btn-add" id="addBtn">追加</button>
     </div>
     <div class="btn-row">
@@ -264,16 +282,16 @@
   </div>
 
   <script>
-    let entries = [];
-    let savedEntries = null;
+    let starts = [];
+    let savedStarts = null;
 
-    const rotationInput = document.getElementById('rotationInput');
+    const startInput = document.getElementById('startInput');
     const averageValue = document.getElementById('averageValue');
     const countLabel = document.getElementById('countLabel');
     const historyList = document.getElementById('historyList');
     const undoBtn = document.getElementById('undoBtn');
 
-    rotationInput.addEventListener('keydown', function(e) {
+    startInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') addEntry();
     });
 
@@ -282,56 +300,82 @@
     undoBtn.addEventListener('click', undoReset);
 
     function addEntry() {
-      const val = parseInt(rotationInput.value, 10);
+      const val = parseInt(startInput.value, 10);
       if (isNaN(val) || val < 0) {
-        rotationInput.focus();
+        startInput.focus();
         return;
       }
-      entries.push(val);
-      savedEntries = null;
+      if (starts.length > 0 && val < starts[starts.length - 1]) {
+        alert('スタート数は前回の値以上の数を入力してください。');
+        startInput.focus();
+        return;
+      }
+      starts.push(val);
+      savedStarts = null;
       undoBtn.disabled = true;
-      rotationInput.value = '';
-      rotationInput.focus();
+      startInput.value = '';
+      startInput.focus();
       render();
     }
 
     function resetEntries() {
-      if (entries.length === 0) return;
-      savedEntries = entries.slice();
-      entries = [];
+      if (starts.length === 0) return;
+      savedStarts = starts.slice();
+      starts = [];
       undoBtn.disabled = false;
       render();
     }
 
     function undoReset() {
-      if (savedEntries === null) return;
-      entries = savedEntries.slice();
-      savedEntries = null;
+      if (savedStarts === null) return;
+      starts = savedStarts.slice();
+      savedStarts = null;
       undoBtn.disabled = true;
       render();
     }
 
     function render() {
-      if (entries.length === 0) {
+      if (starts.length === 0) {
         averageValue.textContent = '—';
         countLabel.textContent = 'データなし';
         historyList.innerHTML = '<li><span class="empty-message">まだデータがありません</span></li>';
         return;
       }
 
-      const sum = entries.reduce((a, b) => a + b, 0);
-      const avg = (sum / entries.length).toFixed(1);
-      averageValue.textContent = avg;
-      countLabel.textContent = entries.length + ' 件のデータ（合計 ' + sum + ' 回）';
+      // Calculate rotations per 1000 yen as differences between consecutive start counts
+      const rotations = [];
+      for (let i = 1; i < starts.length; i++) {
+        rotations.push(starts[i] - starts[i - 1]);
+      }
+
+      if (rotations.length === 0) {
+        averageValue.textContent = '—';
+        countLabel.textContent = '基準スタート数: ' + starts[0];
+      } else {
+        const sum = rotations.reduce((a, b) => a + b, 0);
+        const avg = (sum / rotations.length).toFixed(1);
+        averageValue.textContent = avg;
+        countLabel.textContent = rotations.length + ' 回分のデータ（合計 ' + sum + ' 回）';
+      }
 
       historyList.innerHTML = '';
-      entries.slice().reverse().forEach(function(val, i) {
-        const index = entries.length - i;
+      starts.slice().reverse().forEach(function(start, reversedIdx) {
+        const origIdx = starts.length - 1 - reversedIdx;
+        const displayIdx = origIdx + 1;
         const li = document.createElement('li');
-        li.innerHTML =
-          '<span class="entry-num">' + index + '</span>' +
-          '<span class="entry-val">' + val + '</span>' +
-          '<span class="entry-unit">回</span>';
+        if (origIdx === 0) {
+          li.innerHTML =
+            '<span class="entry-num">' + displayIdx + '</span>' +
+            '<span class="entry-start">スタート: ' + start + '</span>' +
+            '<span class="entry-base">基準</span>';
+        } else {
+          const rotation = starts[origIdx] - starts[origIdx - 1];
+          li.innerHTML =
+            '<span class="entry-num">' + displayIdx + '</span>' +
+            '<span class="entry-start">スタート: ' + start + '</span>' +
+            '<span class="entry-rotation">' + rotation + '</span>' +
+            '<span class="entry-unit">回 / 千円</span>';
+        }
         historyList.appendChild(li);
       });
     }
