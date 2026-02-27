@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>パチンコ回転数計測</title>
+  <title>勝tooon</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
-      color: #333;
+      background: linear-gradient(135deg, #eaf4f0, #dce8f5);
+      color: #3a3a3a;
       margin: 0;
       padding: 20px;
       display: flex;
@@ -21,23 +21,24 @@
 
     h1 {
       margin: 0;
-      padding: 20px 0 10px;
-      font-size: 2em;
-      color: #4a90e2;
+      padding: 20px 0 6px;
+      font-size: 2.2em;
+      color: #2e7d5e;
       text-align: center;
+      letter-spacing: 0.04em;
     }
 
     .subtitle {
       font-size: 0.9em;
-      color: #666;
+      color: #6b8a7e;
       margin-bottom: 20px;
       text-align: center;
     }
 
     .card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      background: #f8fbfa;
+      border-radius: 14px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
       padding: 20px;
       width: 90%;
       max-width: 500px;
@@ -51,24 +52,29 @@
 
     .average-label {
       font-size: 1em;
-      color: #666;
+      color: #6b8a7e;
     }
 
     .average-value {
       font-size: 3em;
       font-weight: bold;
-      color: #4a90e2;
+      color: #2e7d5e;
       line-height: 1.2;
+      transition: color 0.3s;
+    }
+
+    .average-value.over-border {
+      color: #d63031;
     }
 
     .average-unit {
       font-size: 0.9em;
-      color: #666;
+      color: #6b8a7e;
     }
 
     .count-label {
       font-size: 0.85em;
-      color: #999;
+      color: #8fa89e;
       margin-top: 4px;
     }
 
@@ -82,9 +88,11 @@
       flex: 1;
       padding: 12px;
       font-size: 1.2em;
-      border: 2px solid #ddd;
+      border: 2px solid #c4ddd4;
       border-radius: 8px;
       outline: none;
+      background: #fff;
+      color: #3a3a3a;
       transition: border-color 0.2s;
       -moz-appearance: textfield;
     }
@@ -96,7 +104,7 @@
     }
 
     input[type="number"]:focus {
-      border-color: #4a90e2;
+      border-color: #2e7d5e;
     }
 
     button {
@@ -114,12 +122,12 @@
     }
 
     .btn-add {
-      background-color: #4a90e2;
+      background-color: #2e7d5e;
       color: #fff;
     }
 
     .btn-add:hover {
-      background-color: #357abd;
+      background-color: #245f48;
     }
 
     .btn-row {
@@ -130,34 +138,34 @@
 
     .btn-reset {
       flex: 1;
-      background-color: #e74c3c;
+      background-color: #c0392b;
       color: #fff;
     }
 
     .btn-reset:hover {
-      background-color: #c0392b;
+      background-color: #a93226;
     }
 
     .btn-undo {
       flex: 1;
-      background-color: #95a5a6;
+      background-color: #8fa89e;
       color: #fff;
     }
 
     .btn-undo:hover {
-      background-color: #7f8c8d;
+      background-color: #728f84;
     }
 
     .btn-undo:disabled {
-      background-color: #ddd;
-      color: #aaa;
+      background-color: #d9e5e1;
+      color: #aabdb6;
       cursor: not-allowed;
     }
 
     .history-title {
       font-size: 1em;
       font-weight: bold;
-      color: #555;
+      color: #4a6e62;
       margin-bottom: 10px;
     }
 
@@ -174,7 +182,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 10px 12px;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid #e2efeb;
       font-size: 1em;
     }
 
@@ -183,7 +191,7 @@
     }
 
     .history-list .entry-num {
-      color: #999;
+      color: #8fa89e;
       font-size: 0.85em;
       min-width: 30px;
     }
@@ -191,16 +199,16 @@
     .history-list .entry-val {
       font-weight: bold;
       font-size: 1.1em;
-      color: #333;
+      color: #3a3a3a;
     }
 
     .history-list .entry-unit {
-      color: #666;
+      color: #6b8a7e;
       font-size: 0.85em;
     }
 
     .history-list .entry-start {
-      color: #555;
+      color: #4a6e62;
       font-size: 0.9em;
       flex: 1;
       text-align: center;
@@ -209,16 +217,16 @@
     .history-list .entry-rotation {
       font-weight: bold;
       font-size: 1.1em;
-      color: #4a90e2;
+      color: #2e7d5e;
     }
 
     .history-list .entry-base {
-      color: #999;
+      color: #8fa89e;
       font-size: 0.9em;
     }
 
     .empty-message {
-      color: #aaa;
+      color: #aabdb6;
       text-align: center;
       padding: 20px 0;
       font-size: 0.95em;
@@ -238,7 +246,7 @@
 
     @media (max-width: 400px) {
       h1 {
-        font-size: 1.6em;
+        font-size: 1.7em;
       }
 
       .average-value {
@@ -253,7 +261,7 @@
   </style>
 </head>
 <body>
-  <h1><span aria-hidden="true">🎰 </span>回転数計測</h1>
+  <h1>🏆 勝tooon</h1>
   <p class="subtitle">スタート数を入力して1000円あたりの平均回転数を計算します</p>
 
   <div class="card">
@@ -337,6 +345,7 @@
     function render() {
       if (starts.length === 0) {
         averageValue.textContent = '—';
+        averageValue.classList.remove('over-border');
         countLabel.textContent = 'データなし';
         historyList.innerHTML = '<li><span class="empty-message">まだデータがありません</span></li>';
         return;
@@ -350,11 +359,13 @@
 
       if (rotations.length === 0) {
         averageValue.textContent = '—';
+        averageValue.classList.remove('over-border');
         countLabel.textContent = '基準スタート数: ' + starts[0];
       } else {
         const sum = rotations.reduce((a, b) => a + b, 0);
         const avg = (sum / rotations.length).toFixed(1);
         averageValue.textContent = avg;
+        averageValue.classList.toggle('over-border', parseFloat(avg) >= 20);
         countLabel.textContent = rotations.length + ' 回分のデータ（合計 ' + sum + ' 回）';
       }
 
