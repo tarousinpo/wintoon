@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>パチンコ回転数計測</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin: 0;
+      padding: 20px 0 10px;
+      font-size: 2em;
+      color: #4a90e2;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 0.9em;
+      color: #666;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      margin-bottom: 20px;
+    }
+
+    .average-display {
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    .average-label {
+      font-size: 1em;
+      color: #666;
+    }
+
+    .average-value {
+      font-size: 3em;
+      font-weight: bold;
+      color: #4a90e2;
+      line-height: 1.2;
+    }
+
+    .average-unit {
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .count-label {
+      font-size: 0.85em;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    input[type="number"] {
+      flex: 1;
+      padding: 12px;
+      font-size: 1.2em;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type="number"]:focus {
+      border-color: #4a90e2;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    .btn-add {
+      background-color: #4a90e2;
+      color: #fff;
+    }
+
+    .btn-add:hover {
+      background-color: #357abd;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn-reset {
+      flex: 1;
+      background-color: #e74c3c;
+      color: #fff;
+    }
+
+    .btn-reset:hover {
+      background-color: #c0392b;
+    }
+
+    .btn-undo {
+      flex: 1;
+      background-color: #95a5a6;
+      color: #fff;
+    }
+
+    .btn-undo:hover {
+      background-color: #7f8c8d;
+    }
+
+    .btn-undo:disabled {
+      background-color: #ddd;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+
+    .history-title {
+      font-size: 1em;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .history-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .history-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 1em;
+    }
+
+    .history-list li:last-child {
+      border-bottom: none;
+    }
+
+    .history-list .entry-num {
+      color: #999;
+      font-size: 0.85em;
+      min-width: 30px;
+    }
+
+    .history-list .entry-val {
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #333;
+    }
+
+    .history-list .entry-unit {
+      color: #666;
+      font-size: 0.85em;
+    }
+
+    .empty-message {
+      color: #aaa;
+      text-align: center;
+      padding: 20px 0;
+      font-size: 0.95em;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 400px) {
+      h1 {
+        font-size: 1.6em;
+      }
+
+      .average-value {
+        font-size: 2.5em;
+      }
+
+      button {
+        padding: 10px 14px;
+        font-size: 0.95em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1><span aria-hidden="true">🎰 </span>回転数計測</h1>
+  <p class="subtitle">パチンコの平均回転数（ボーダー）を計算します</p>
+
+  <div class="card">
+    <div class="average-display">
+      <div class="average-label">平均回転数（ボーダー）</div>
+      <div class="average-value" id="averageValue">—</div>
+      <div class="average-unit">回 / 千円</div>
+      <div class="count-label" id="countLabel">データなし</div>
+    </div>
+    <div class="input-area">
+      <label for="rotationInput" class="sr-only">回転数</label>
+      <input type="number" id="rotationInput" placeholder="回転数を入力" min="0" inputmode="numeric">
+      <button class="btn-add" id="addBtn">追加</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-reset" id="resetBtn">リセット</button>
+      <button class="btn-undo" id="undoBtn" disabled>リセット取消</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="history-title">📋 入力履歴</div>
+    <ul class="history-list" id="historyList">
+      <li><span class="empty-message">まだデータがありません</span></li>
+    </ul>
+  </div>
+
+  <script>
+    let entries = [];
+    let savedEntries = null;
+
+    const rotationInput = document.getElementById('rotationInput');
+    const averageValue = document.getElementById('averageValue');
+    const countLabel = document.getElementById('countLabel');
+    const historyList = document.getElementById('historyList');
+    const undoBtn = document.getElementById('undoBtn');
+
+    rotationInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addEntry();
+    });
+
+    document.getElementById('addBtn').addEventListener('click', addEntry);
+    document.getElementById('resetBtn').addEventListener('click', resetEntries);
+    undoBtn.addEventListener('click', undoReset);
+
+    function addEntry() {
+      const val = parseInt(rotationInput.value, 10);
+      if (isNaN(val) || val < 0) {
+        rotationInput.focus();
+        return;
+      }
+      entries.push(val);
+      savedEntries = null;
+      undoBtn.disabled = true;
+      rotationInput.value = '';
+      rotationInput.focus();
+      render();
+    }
+
+    function resetEntries() {
+      if (entries.length === 0) return;
+      savedEntries = entries.slice();
+      entries = [];
+      undoBtn.disabled = false;
+      render();
+    }
+
+    function undoReset() {
+      if (savedEntries === null) return;
+      entries = savedEntries.slice();
+      savedEntries = null;
+      undoBtn.disabled = true;
+      render();
+    }
+
+    function render() {
+      if (entries.length === 0) {
+        averageValue.textContent = '—';
+        countLabel.textContent = 'データなし';
+        historyList.innerHTML = '<li><span class="empty-message">まだデータがありません</span></li>';
+        return;
+      }
+
+      const sum = entries.reduce((a, b) => a + b, 0);
+      const avg = (sum / entries.length).toFixed(1);
+      averageValue.textContent = avg;
+      countLabel.textContent = entries.length + ' 件のデータ（合計 ' + sum + ' 回）';
+
+      historyList.innerHTML = '';
+      entries.slice().reverse().forEach(function(val, i) {
+        const index = entries.length - i;
+        const li = document.createElement('li');
+        li.innerHTML =
+          '<span class="entry-num">' + index + '</span>' +
+          '<span class="entry-val">' + val + '</span>' +
+          '<span class="entry-unit">回</span>';
+        historyList.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
