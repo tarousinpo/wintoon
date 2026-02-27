@@ -82,7 +82,8 @@
 
     .input-area {
       display: flex;
-      gap: 10px;
+      flex-direction: column;
+      gap: 8px;
       margin-top: 10px;
     }
 
@@ -126,6 +127,9 @@
     .btn-add {
       background-color: #2e7d5e;
       color: #fff;
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 1.2em;
     }
 
     .btn-add:hover {
@@ -162,6 +166,48 @@
       background-color: #d9e5e1;
       color: #aabdb6;
       cursor: not-allowed;
+    }
+
+    .btn-segment {
+      flex: 1;
+      background-color: #e67e22;
+      color: #fff;
+    }
+
+    .btn-segment:hover {
+      background-color: #ca6f1e;
+    }
+
+    .btn-segment:disabled {
+      background-color: #f0d8b5;
+      color: #c9a068;
+      cursor: not-allowed;
+    }
+
+    .btn-delete-entry {
+      background: none;
+      border: 1px solid #d9e5e1;
+      color: #c0392b;
+      font-size: 0.85em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      line-height: 1.3;
+      min-width: 28px;
+      transition: background-color 0.2s;
+    }
+
+    .btn-delete-entry:hover {
+      background-color: #fdecea;
+    }
+
+    .segment-separator {
+      color: #8fa89e;
+      font-size: 0.85em;
+      text-align: center;
+      width: 100%;
+      padding: 4px 0;
     }
 
     .history-title {
@@ -341,6 +387,15 @@
       color: #aaaaaa;
     }
 
+    body.bling-mode .btn-delete-entry {
+      border-color: rgba(255, 215, 0, 0.3);
+      color: #ff6666;
+    }
+
+    body.bling-mode .btn-delete-entry:hover {
+      background-color: rgba(255, 0, 0, 0.2);
+    }
+
     /* Screenshot button */
     .btn-screenshot {
       flex: 1;
@@ -370,6 +425,9 @@
       <button class="btn-add" id="addBtn">追加</button>
     </div>
     <div class="btn-row">
+      <button class="btn-segment" id="segmentBtn" disabled>🔄 仕切り直し</button>
+    </div>
+    <div class="btn-row">
       <button class="btn-reset" id="resetBtn">リセット</button>
       <button class="btn-undo" id="undoBtn" disabled>リセット取消</button>
     </div>
@@ -388,12 +446,15 @@
   <script>
     let starts = [];
     let savedStarts = null;
+    let pastRotations = [];
+    let savedPastRotations = null;
 
     const startInput = document.getElementById('startInput');
     const averageValue = document.getElementById('averageValue');
     const countLabel = document.getElementById('countLabel');
     const historyList = document.getElementById('historyList');
     const undoBtn = document.getElementById('undoBtn');
+    const segmentBtn = document.getElementById('segmentBtn');
     const h1El = document.querySelector('h1');
 
     // ===== Bling mode toggle on title click =====
@@ -408,6 +469,7 @@
 
     document.getElementById('addBtn').addEventListener('click', addEntry);
     document.getElementById('resetBtn').addEventListener('click', resetEntries);
+    document.getElementById('segmentBtn').addEventListener('click', resetSegment);
     undoBtn.addEventListener('click', undoReset);
     document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
 
@@ -424,16 +486,41 @@
       }
       starts.push(val);
       savedStarts = null;
+      savedPastRotations = null;
       undoBtn.disabled = true;
       startInput.value = '';
       startInput.focus();
       render();
     }
 
-    function resetEntries() {
-      if (starts.length === 0) return;
-      savedStarts = starts.slice();
+    function resetSegment() {
+      if (starts.length < 2) return;
+      const rotations = [];
+      for (let i = 1; i < starts.length; i++) {
+        rotations.push(starts[i] - starts[i - 1]);
+      }
+      pastRotations.push(...rotations);
       starts = [];
+      savedStarts = null;
+      savedPastRotations = null;
+      undoBtn.disabled = true;
+      render();
+    }
+
+    function deleteEntry(idx) {
+      starts.splice(idx, 1);
+      savedStarts = null;
+      savedPastRotations = null;
+      undoBtn.disabled = true;
+      render();
+    }
+
+    function resetEntries() {
+      if (starts.length === 0 && pastRotations.length === 0) return;
+      savedStarts = starts.slice();
+      savedPastRotations = pastRotations.slice();
+      starts = [];
+      pastRotations = [];
       undoBtn.disabled = false;
       render();
     }
@@ -441,58 +528,78 @@
     function undoReset() {
       if (savedStarts === null) return;
       starts = savedStarts.slice();
+      pastRotations = savedPastRotations ? savedPastRotations.slice() : [];
       savedStarts = null;
+      savedPastRotations = null;
       undoBtn.disabled = true;
       render();
     }
 
     function render() {
-      if (starts.length === 0) {
+      const currentRotations = [];
+      for (let i = 1; i < starts.length; i++) {
+        currentRotations.push(starts[i] - starts[i - 1]);
+      }
+      const allRotations = pastRotations.concat(currentRotations);
+
+      if (starts.length === 0 && pastRotations.length === 0) {
         averageValue.textContent = '—';
         averageValue.classList.remove('over-border');
         countLabel.textContent = 'データなし';
         historyList.innerHTML = '<li><span class="empty-message">まだデータがありません</span></li>';
+        segmentBtn.disabled = true;
         return;
       }
 
-      // Calculate rotations per 1000 yen as differences between consecutive start counts
-      const rotations = [];
-      for (let i = 1; i < starts.length; i++) {
-        rotations.push(starts[i] - starts[i - 1]);
-      }
-
-      if (rotations.length === 0) {
+      if (allRotations.length === 0) {
         averageValue.textContent = '—';
         averageValue.classList.remove('over-border');
-        countLabel.textContent = '基準スタート数: ' + starts[0];
+        countLabel.textContent = starts.length > 0 ? '基準スタート数: ' + starts[0] : 'データなし';
       } else {
-        const sum = rotations.reduce((a, b) => a + b, 0);
-        const avg = (sum / rotations.length).toFixed(1);
+        const sum = allRotations.reduce((a, b) => a + b, 0);
+        const avg = (sum / allRotations.length).toFixed(1);
         averageValue.textContent = avg;
         averageValue.classList.toggle('over-border', parseFloat(avg) >= 20);
-        countLabel.textContent = rotations.length + ' 回分のデータ（合計 ' + sum + ' 回）';
+        countLabel.textContent = allRotations.length + ' 回分のデータ（合計 ' + sum + ' 回）';
       }
 
+      segmentBtn.disabled = starts.length < 2;
+
       historyList.innerHTML = '';
-      starts.slice().reverse().forEach(function(start, reversedIdx) {
-        const origIdx = starts.length - 1 - reversedIdx;
-        const displayIdx = origIdx + 1;
+      if (starts.length > 0) {
+        starts.slice().reverse().forEach(function(start, reversedIdx) {
+          const origIdx = starts.length - 1 - reversedIdx;
+          const displayIdx = origIdx + 1;
+          const li = document.createElement('li');
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-delete-entry';
+          delBtn.textContent = '×';
+          delBtn.setAttribute('aria-label', '削除');
+          delBtn.addEventListener('click', function() { deleteEntry(origIdx); });
+          if (origIdx === 0) {
+            li.innerHTML =
+              '<span class="entry-num">' + displayIdx + '</span>' +
+              '<span class="entry-start">スタート: ' + start + '</span>' +
+              '<span class="entry-base">基準</span>';
+          } else {
+            const rotation = starts[origIdx] - starts[origIdx - 1];
+            li.innerHTML =
+              '<span class="entry-num">' + displayIdx + '</span>' +
+              '<span class="entry-start">スタート: ' + start + '</span>' +
+              '<span class="entry-rotation">' + rotation + '</span>' +
+              '<span class="entry-unit">回 / 千円</span>';
+          }
+          li.appendChild(delBtn);
+          historyList.appendChild(li);
+        });
+      }
+
+      if (pastRotations.length > 0) {
         const li = document.createElement('li');
-        if (origIdx === 0) {
-          li.innerHTML =
-            '<span class="entry-num">' + displayIdx + '</span>' +
-            '<span class="entry-start">スタート: ' + start + '</span>' +
-            '<span class="entry-base">基準</span>';
-        } else {
-          const rotation = starts[origIdx] - starts[origIdx - 1];
-          li.innerHTML =
-            '<span class="entry-num">' + displayIdx + '</span>' +
-            '<span class="entry-start">スタート: ' + start + '</span>' +
-            '<span class="entry-rotation">' + rotation + '</span>' +
-            '<span class="entry-unit">回 / 千円</span>';
-        }
+        const pastSum = pastRotations.reduce((a, b) => a + b, 0);
+        li.innerHTML = '<span class="segment-separator">— 前セグメント: ' + pastRotations.length + ' 回分（合計 ' + pastSum + ' 回）—</span>';
         historyList.appendChild(li);
-      });
+      }
     }
 
     // ===== Screenshot =====
@@ -513,15 +620,16 @@
     }
 
     function takeScreenshot() {
-      if (starts.length === 0) {
+      if (starts.length === 0 && pastRotations.length === 0) {
         alert('まだデータがありません');
         return;
       }
 
-      var rotations = [];
+      var currentRotations = [];
       for (var i = 1; i < starts.length; i++) {
-        rotations.push(starts[i] - starts[i - 1]);
+        currentRotations.push(starts[i] - starts[i - 1]);
       }
+      var rotations = pastRotations.concat(currentRotations);
       var sum = rotations.length > 0 ? rotations.reduce(function(a, b) { return a + b; }, 0) : 0;
       var avg = rotations.length > 0 ? parseFloat((sum / rotations.length).toFixed(1)) : null;
       var isFancy = avg !== null && avg >= 20;
@@ -529,7 +637,8 @@
       var W = 520;
       var pad = 32;
       var rowH = 38;
-      var H = 220 + starts.length * rowH + 60;
+      var extraRows = pastRotations.length > 0 ? 1 : 0;
+      var H = 220 + (starts.length + extraRows) * rowH + 60;
 
       var canvas = document.createElement('canvas');
       canvas.width = W;
@@ -618,8 +727,10 @@
       ctx.fillStyle = isFancy ? '#8888ff' : '#8fa89e';
       if (rotations.length > 0) {
         ctx.fillText(rotations.length + ' 回分のデータ（合計 ' + sum + ' 回）', W / 2, 205);
-      } else {
+      } else if (starts.length > 0) {
         ctx.fillText('基準スタート数: ' + starts[0], W / 2, 205);
+      } else {
+        ctx.fillText('前セグメントのみ', W / 2, 205);
       }
 
       // Divider
@@ -673,6 +784,15 @@
           ctx.shadowBlur = 0;
         }
       });
+
+      if (pastRotations.length > 0) {
+        var sepY = 237 + (starts.length + 1) * rowH;
+        var pastSum = pastRotations.reduce(function(a, b) { return a + b; }, 0);
+        ctx.textAlign = 'center';
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = isFancy ? '#888899' : '#8fa89e';
+        ctx.fillText('— 前セグメント: ' + pastRotations.length + ' 回分（合計 ' + pastSum + ' 回）—', W / 2, sepY);
+      }
 
       // Timestamp
       ctx.textAlign = 'center';
