@@ -210,6 +210,18 @@
       padding: 4px 0;
     }
 
+    .history-list li.segment-separator-row {
+      padding: 5px 12px;
+      border-top: 2px solid #c4ddd4;
+      border-bottom: 2px solid #c4ddd4;
+      background-color: #eef5f2;
+    }
+
+    .history-list li.past-segment-entry {
+      background-color: #f4f9f7;
+      opacity: 0.85;
+    }
+
     .history-title {
       font-size: 1em;
       font-weight: bold;
@@ -396,6 +408,16 @@
       background-color: rgba(255, 0, 0, 0.2);
     }
 
+    body.bling-mode .history-list li.segment-separator-row {
+      border-top-color: rgba(255, 215, 0, 0.5);
+      border-bottom-color: rgba(255, 215, 0, 0.5);
+      background-color: rgba(255, 215, 0, 0.06);
+    }
+
+    body.bling-mode .history-list li.past-segment-entry {
+      opacity: 0.7;
+    }
+
     /* Screenshot button */
     .btn-screenshot {
       flex: 1;
@@ -446,8 +468,8 @@
   <script>
     let starts = [];
     let savedStarts = null;
-    let pastRotations = [];
-    let savedPastRotations = null;
+    let pastSegments = [];
+    let savedPastSegments = null;
 
     const startInput = document.getElementById('startInput');
     const averageValue = document.getElementById('averageValue');
@@ -486,7 +508,7 @@
       }
       starts.push(val);
       savedStarts = null;
-      savedPastRotations = null;
+      savedPastSegments = null;
       undoBtn.disabled = true;
       startInput.value = '';
       startInput.focus();
@@ -495,14 +517,10 @@
 
     function resetSegment() {
       if (starts.length < 2) return;
-      const rotations = [];
-      for (let i = 1; i < starts.length; i++) {
-        rotations.push(starts[i] - starts[i - 1]);
-      }
-      pastRotations.push(...rotations);
+      pastSegments.push(starts.slice());
       starts = [];
       savedStarts = null;
-      savedPastRotations = null;
+      savedPastSegments = null;
       undoBtn.disabled = true;
       render();
     }
@@ -510,17 +528,17 @@
     function deleteEntry(idx) {
       starts.splice(idx, 1);
       savedStarts = null;
-      savedPastRotations = null;
+      savedPastSegments = null;
       undoBtn.disabled = true;
       render();
     }
 
     function resetEntries() {
-      if (starts.length === 0 && pastRotations.length === 0) return;
+      if (starts.length === 0 && pastSegments.length === 0) return;
       savedStarts = starts.slice();
-      savedPastRotations = pastRotations.slice();
+      savedPastSegments = pastSegments.slice();
       starts = [];
-      pastRotations = [];
+      pastSegments = [];
       undoBtn.disabled = false;
       render();
     }
@@ -528,9 +546,9 @@
     function undoReset() {
       if (savedStarts === null) return;
       starts = savedStarts.slice();
-      pastRotations = savedPastRotations ? savedPastRotations.slice() : [];
+      pastSegments = savedPastSegments ? savedPastSegments.slice() : [];
       savedStarts = null;
-      savedPastRotations = null;
+      savedPastSegments = null;
       undoBtn.disabled = true;
       render();
     }
@@ -540,9 +558,15 @@
       for (let i = 1; i < starts.length; i++) {
         currentRotations.push(starts[i] - starts[i - 1]);
       }
+      const pastRotations = [];
+      pastSegments.forEach(function(seg) {
+        for (let i = 1; i < seg.length; i++) {
+          pastRotations.push(seg[i] - seg[i - 1]);
+        }
+      });
       const allRotations = pastRotations.concat(currentRotations);
 
-      if (starts.length === 0 && pastRotations.length === 0) {
+      if (starts.length === 0 && pastSegments.length === 0) {
         averageValue.textContent = '—';
         averageValue.classList.remove('over-border');
         countLabel.textContent = 'データなし';
@@ -594,11 +618,38 @@
         });
       }
 
-      if (pastRotations.length > 0) {
-        const li = document.createElement('li');
-        const pastSum = pastRotations.reduce((a, b) => a + b, 0);
-        li.innerHTML = '<span class="segment-separator">— 前セグメント: ' + pastRotations.length + ' 回分（合計 ' + pastSum + ' 回）—</span>';
-        historyList.appendChild(li);
+      if (pastSegments.length > 0) {
+        pastSegments.slice().reverse().forEach(function(seg) {
+          const segLi = document.createElement('li');
+          segLi.className = 'segment-separator-row';
+          const segRotations = [];
+          for (let i = 1; i < seg.length; i++) {
+            segRotations.push(seg[i] - seg[i - 1]);
+          }
+          const segSum = segRotations.reduce((a, b) => a + b, 0);
+          segLi.innerHTML = '<span class="segment-separator">— 仕切り直し: ' + segRotations.length + ' 回分（合計 ' + segSum + ' 回）—</span>';
+          historyList.appendChild(segLi);
+          seg.slice().reverse().forEach(function(start, reversedIdx) {
+            const origIdx = seg.length - 1 - reversedIdx;
+            const displayIdx = origIdx + 1;
+            const li = document.createElement('li');
+            li.className = 'past-segment-entry';
+            if (origIdx === 0) {
+              li.innerHTML =
+                '<span class="entry-num">' + displayIdx + '</span>' +
+                '<span class="entry-start">スタート: ' + start + '</span>' +
+                '<span class="entry-base">基準</span>';
+            } else {
+              const rotation = seg[origIdx] - seg[origIdx - 1];
+              li.innerHTML =
+                '<span class="entry-num">' + displayIdx + '</span>' +
+                '<span class="entry-start">スタート: ' + start + '</span>' +
+                '<span class="entry-rotation">' + rotation + '</span>' +
+                '<span class="entry-unit">回 / 千円</span>';
+            }
+            historyList.appendChild(li);
+          });
+        });
       }
     }
 
@@ -620,7 +671,7 @@
     }
 
     function takeScreenshot() {
-      if (starts.length === 0 && pastRotations.length === 0) {
+      if (starts.length === 0 && pastSegments.length === 0) {
         alert('まだデータがありません');
         return;
       }
@@ -629,7 +680,13 @@
       for (var i = 1; i < starts.length; i++) {
         currentRotations.push(starts[i] - starts[i - 1]);
       }
-      var rotations = pastRotations.concat(currentRotations);
+      var allPastRotations = [];
+      pastSegments.forEach(function(seg) {
+        for (var si = 1; si < seg.length; si++) {
+          allPastRotations.push(seg[si] - seg[si - 1]);
+        }
+      });
+      var rotations = allPastRotations.concat(currentRotations);
       var sum = rotations.length > 0 ? rotations.reduce(function(a, b) { return a + b; }, 0) : 0;
       var avg = rotations.length > 0 ? parseFloat((sum / rotations.length).toFixed(1)) : null;
       var isFancy = avg !== null && avg >= 20;
@@ -637,8 +694,9 @@
       var W = 520;
       var pad = 32;
       var rowH = 38;
-      var extraRows = pastRotations.length > 0 ? 1 : 0;
-      var H = 220 + (starts.length + extraRows) * rowH + 60;
+      var pastRows = 0;
+      pastSegments.forEach(function(seg) { pastRows += 1 + seg.length; });
+      var H = 220 + (starts.length + pastRows) * rowH + 60;
 
       var canvas = document.createElement('canvas');
       canvas.width = W;
@@ -785,13 +843,56 @@
         }
       });
 
-      if (pastRotations.length > 0) {
-        var sepY = 237 + (starts.length + 1) * rowH;
-        var pastSum = pastRotations.reduce(function(a, b) { return a + b; }, 0);
-        ctx.textAlign = 'center';
-        ctx.font = '12px sans-serif';
-        ctx.fillStyle = isFancy ? '#888899' : '#8fa89e';
-        ctx.fillText('— 前セグメント: ' + pastRotations.length + ' 回分（合計 ' + pastSum + ' 回）—', W / 2, sepY);
+      if (pastSegments.length > 0) {
+        var currentY = 237 + starts.length * rowH;
+        pastSegments.slice().reverse().forEach(function(seg) {
+          currentY += rowH;
+          var segY = currentY;
+          var segRotations = [];
+          for (var si = 1; si < seg.length; si++) {
+            segRotations.push(seg[si] - seg[si - 1]);
+          }
+          var segSum = segRotations.reduce(function(a, b) { return a + b; }, 0);
+
+          ctx.strokeStyle = isFancy ? 'rgba(255,215,0,0.5)' : '#c4ddd4';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(pad, segY - Math.round(rowH * 0.55));
+          ctx.lineTo(W - pad, segY - Math.round(rowH * 0.55));
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.font = '12px sans-serif';
+          ctx.fillStyle = isFancy ? '#888899' : '#8fa89e';
+          ctx.fillText('仕切り直し: ' + segRotations.length + ' 回分（合計 ' + segSum + ' 回）', W / 2, segY);
+
+          seg.slice().reverse().forEach(function(start, rIdx) {
+            var origIdx = seg.length - 1 - rIdx;
+            var dispIdx = origIdx + 1;
+            currentY += rowH;
+            var y = currentY;
+
+            ctx.textAlign = 'left';
+            ctx.font = '13px sans-serif';
+            ctx.fillStyle = isFancy ? rainbowRow[rIdx % rainbowRow.length] : '#8fa89e';
+            ctx.fillText(dispIdx + '.', pad, y);
+
+            ctx.fillStyle = isFancy ? 'rgba(255,255,255,0.65)' : '#6b8a7e';
+            ctx.fillText('スタート: ' + start, pad + 36, y);
+
+            ctx.textAlign = 'right';
+            if (origIdx === 0) {
+              ctx.font = '13px sans-serif';
+              ctx.fillStyle = isFancy ? '#666677' : '#8fa89e';
+              ctx.fillText('基準', W - pad, y);
+            } else {
+              var rot = seg[origIdx] - seg[origIdx - 1];
+              ctx.font = 'bold 14px sans-serif';
+              ctx.fillStyle = isFancy ? 'rgba(255,215,0,0.65)' : '#6b8a7e';
+              ctx.fillText(rot + ' 回/千円', W - pad, y);
+            }
+          });
+        });
       }
 
       // Timestamp
